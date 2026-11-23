@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Code Breaker Coordinator</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">CODE BREAKER <span>coordinator</span></div>
+    <div class="conn" id="conn" hidden></div>
+  </header>
+
+  <main>
+    <!-- Landing -->
+    <section id="landing" hidden>
+      <div class="card">
+        <h1>Brute-force the Drill Tower together</h1>
+        <p class="muted">One person creates a group and shares the invite code. Everyone in the group sees the same next code in real time, and nobody repeats a guess.</p>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Create a group</h2>
+          <label class="lbl">Code length (towers on the map)</label>
+          <div class="seg" id="createLen">
+            <button type="button" data-len="3">3</button>
+            <button type="button" data-len="4" class="on">4</button>
+            <button type="button" data-len="5">5</button>
+          </div>
+          <button class="btn primary wide" id="createBtn" type="button">Create group</button>
+        </div>
+        <div class="card">
+          <h2>Join a group</h2>
+          <label class="lbl" for="joinCode">Invite code</label>
+          <input id="joinCode" class="text mono" placeholder="ABCD-EFGH" maxlength="9" autocomplete="off" spellcheck="false">
+          <button class="btn wide" id="joinBtn" type="button">Join</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Group -->
+    <section id="group" hidden>
+      <div class="card invite">
+        <div>
+          <div class="lbl">Invite code</div>
+          <div class="invite-code mono" id="inviteCode"></div>
+        </div>
+        <div class="invite-actions">
+          <button class="btn" id="copyLink" type="button">Copy invite link</button>
+          <span class="muted small" id="viewers"></span>
+        </div>
+        <div class="name-row">
+          <label class="lbl" for="myName">Your name</label>
+          <input id="myName" class="text" maxlength="24" placeholder="Shown in the attempt log">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row-between">
+          <h2>Setup</h2>
+          <span class="muted small" id="dirtyNote" hidden>Unsaved changes</span>
+        </div>
+        <label class="lbl">Code length</label>
+        <div class="seg" id="lenSeg">
+          <button type="button" data-len="3">3</button>
+          <button type="button" data-len="4">4</button>
+          <button type="button" data-len="5">5</button>
+        </div>
+        <label class="lbl">Known digits <span class="muted">(captured from towers; leave unknown positions blank)</span></label>
+        <div class="slots" id="slots"></div>
+        <button class="btn" id="saveSetup" type="button">Save setup</button>
+      </div>
+
+      <div class="warn" id="warn" hidden>
+        <strong>The achievement can't be earned with this setup.</strong>
+        Code Breaker needs at least 3 unknown digits, and this setup has <span id="warnCount"></span>.
+        Clear known digits until at least 3 positions are blank.
+      </div>
+
+      <div class="card main-card">
+        <div class="lbl" id="phaseLabel"></div>
+        <div class="code-display mono" id="codeDisplay" aria-live="polite"></div>
+        <div class="win-msg" id="winMsg" hidden></div>
+        <div class="actions">
+          <button class="btn danger big" id="wrongBtn" type="button">Code wrong</button>
+          <button class="btn success big" id="correctBtn" type="button">Code correct</button>
+        </div>
+        <div class="sub-actions">
+          <button class="btn ghost" id="undoBtn" type="button">Undo last</button>
+        </div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="num" id="statAttempts">0</div><div class="lbl">Attempts made</div></div>
+        <div class="stat"><div class="num" id="statRemaining">0</div><div class="lbl">Permutations left</div></div>
+        <div class="stat"><div class="num" id="statNoRepeat">0</div><div class="lbl">Non-repeating left</div></div>
+      </div>
+      <div class="progress"><div id="progressBar"></div></div>
+      <p class="muted small center" id="progressNote"></p>
+
+      <div class="card">
+        <h2>Attempt log</h2>
+        <ol class="log" id="log"></ol>
+        <p class="muted small" id="logEmpty">No attempts yet.</p>
+      </div>
+
+      <div class="card reset-card">
+        <div>
+          <h2>Start fresh attempt</h2>
+          <p class="muted small">Use when a new match starts. Clears every attempt and known digit for the whole group.</p>
+        </div>
+        <div>
+          <button class="btn danger-outline" id="resetBtn" type="button">Start fresh attempt</button>
+          <div class="confirm" id="resetConfirm" hidden>
+            <span>Clear everything for all viewers?</span>
+            <button class="btn danger" id="resetYes" type="button">Yes, start fresh</button>
+            <button class="btn ghost" id="resetNo" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="notfound" hidden>
+      <div class="card">
+        <h2 id="nfTitle">Group not found</h2>
+        <p class="muted" id="nfMsg">That invite code doesn't match an active group. Groups are removed after 48 hours without activity.</p>
+        <a class="btn" href="/">Back to start</a>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

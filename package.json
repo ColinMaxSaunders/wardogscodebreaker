@@ -1,0 +1,13 @@
+{
+  "name": "wardogs-codebreaker-coordinator",
+  "version": "1.0.0",
+  "description": "Real-time group coordinator for brute-forcing WARDOGS Drill Tower codes without repeating guesses.",
+  "main": "server.js",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/sequence.test.js"
+  }
+}
