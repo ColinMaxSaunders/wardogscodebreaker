@@ -145,3 +145,13 @@ details.about summary { cursor: pointer; }
 .manual .text { margin: 8px 0 10px; max-width: 220px; display: block; }
 .manual .actions .btn { flex: 1; }
 .manual .confirm { margin-top: 6px; }
+
+/* collapsible Setup */
+.setup-toggle { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.setup-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.setup-head { display: flex; align-items: baseline; gap: 10px; }
+.setup-title { font-size: 1.05rem; font-weight: 700; }
+.setup-summary { flex: 1; text-align: right; color: var(--muted); font-size: 0.85rem; font-family: ui-monospace, Consolas, monospace; line-height: 1.35; }
+.chev { width: 10px; height: 10px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-135deg); margin-top: 4px; flex: none; transition: transform 0.15s; }
+.setup-card.collapsed .chev { transform: rotate(45deg); margin-top: -4px; }
+#setupBody { margin-top: 4px; }

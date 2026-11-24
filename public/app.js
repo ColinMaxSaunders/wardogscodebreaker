@@ -15,7 +15,8 @@
   let pendingCorrect = null; // code awaiting "are you sure?"
   let myTower = '1';         // keypad lockouts are per tower, so each tower gets its own code
   let claiming = false;
-  let clockOffset = 0;       // server time minus this device's time
+  let clockOffset = 0;
+  let setupOpen = null;      // null until the first state arrives, then true/false       // server time minus this device's time
   let setupDirty = false;
   let draft = { length: 4, known: [null, null, null, null], sources: [null, null, null, null], map: '' };
 
@@ -140,6 +141,7 @@
       markDirty(); renderSetup();
     });
     $('saveSetup').addEventListener('click', saveSetup);
+    $('setupToggle').addEventListener('click', () => setSetupOpen(!setupOpen));
     $('mapSel').addEventListener('change', () => { draft.map = $('mapSel').value; markDirty(); });
 
     $('wrongBtn').addEventListener('click', () => mark('wrong'));
@@ -190,7 +192,7 @@
 
   async function saveSetup() {
     const r = await act('config', { length: draft.length, known: draft.known, sources: draft.known.map((d, i) => d === null ? null : (draft.sources[i] || 'tower')), map: draft.map });
-    if (r && r.ok) { setupDirty = false; $('dirtyNote').hidden = true; flash('Setup saved for everyone.'); }
+    if (r && r.ok) { setupDirty = false; $('dirtyNote').hidden = true; setSetupOpen(false); flash('Setup saved for everyone.'); }
   }
 
   function askCorrect() {
@@ -244,7 +246,12 @@
   function render() {
     const s = state;
     $('viewers').textContent = s.viewers === 1 ? '1 person viewing' : s.viewers + ' people viewing';
+    if (setupOpen === null) {
+      const inUse = s.attempts.length > 0 || s.known.some(d => d !== null) || !!s.map;
+      setSetupOpen(!inUse);
+    }
     renderSetup();
+    renderSetupSummary();
 
     $('warn').hidden = s.eligible;
     const gc = s.guessedCount === undefined ? s.unknownCount : s.guessedCount;
@@ -340,6 +347,27 @@
       const used = t.sinceLock;
       el.textContent = 'Tower ' + myTower + ': ' + used + ' of ' + s.lockout.after + ' tries used before a ' + Math.round(s.lockout.ms / 1000) + '-second lockout.';
     }
+  }
+
+  function setSetupOpen(open) {
+    setupOpen = open;
+    $('setupBody').hidden = !open;
+    $('setupToggle').setAttribute('aria-expanded', String(open));
+    $('setupCard').classList.toggle('collapsed', !open);
+    renderSetupSummary();
+  }
+
+  // Shown while Setup is collapsed, e.g. "Ozeti · ? ? 5* ? · 4 to guess" (* = told)
+  function renderSetupSummary() {
+    const s = state; if (!s) return;
+    const digits = s.known.map((d, i) => d === null ? '?' : String(d) + ((s.sources && s.sources[i] === 'told') ? '*' : '')).join(' ');
+    const gc = s.guessedCount === undefined ? s.unknownCount : s.guessedCount;
+    const parts = [];
+    if (s.map) parts.push(s.map);
+    parts.push(digits);
+    parts.push(gc + ' to guess');
+    $('setupSummary').textContent = setupOpen ? '' : parts.join(' · ');
+    $('setupSummary').title = (s.sources || []).includes('told') ? '* = digit told by another team' : '';
   }
 
   function renderSetup() {

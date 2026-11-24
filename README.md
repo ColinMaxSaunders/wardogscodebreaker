@@ -12,6 +12,7 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 - Gives each tower its own code. A keypad lockout hits everyone at that tower, so a squad spread across towers guesses in parallel, and no code is handed out twice. People at the same tower share one code.
 - **Typed a different code by mistake?** logs the code that was actually entered, so it is never handed out again
 - Known digits can be marked **Told** when another team shared them. They cut the codes to try but still count as guessed for the achievement
+- **Setup** collapses to a one-line summary (map, known digits, digits to guess) after saving and can be reopened any time
 - Shows each tower's tries before the ~30-second lockout (3 wrong codes) and a countdown while it is locked
 - Tries codes with no repeated digits first, then the rest. Each list is shuffled in a random order unique to the group, shared by everyone viewing it, and reshuffled on Start fresh attempt.
 - Shows attempts made, combinations left, and a shared attempt log
