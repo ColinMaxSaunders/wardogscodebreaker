@@ -2,7 +2,7 @@
 
 A web app that helps groups of friends get the Code Breaker achievement in WARDOGS.
 
-A small web app that lets a group brute-force a WARDOGS Drill Tower code together without anyone repeating a guess. Everyone in the group sees the same next code live. The code changes only when someone clicks **Code wrong**.
+A small web app that lets a group brute-force a WARDOGS Drill Tower code together without anyone repeating a guess. Everyone in the group sees the same next code live, and the app's suggestion changes only when someone clicks **Code wrong**. The game's code is one code for the whole map. It changes whenever anyone in the match calls in any drill (a correct tower code or a FOB drill rig, from any faction), and on a new match.
 
 - Group invite codes are 8 random characters, for example `GMSK-B4KD`
 - Code length is 3–5 digits. Known digits can be entered in their positions.
@@ -10,9 +10,12 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 - Blocks guessing when 4 or 5 digits are unknown (10,000 or 100,000 codes) and tells the group how many more towers to capture
 - Asks "Did the game accept this code?" before recording a correct code
 - Gives each tower its own code. A keypad lockout hits everyone at that tower, so a squad spread across towers guesses in parallel, and no code is handed out twice. People at the same tower share one code.
+- **Typed a different code by mistake?** logs the code that was actually entered, so it is never handed out again
+- Known digits can be marked **Told** when another team shared them. They cut the codes to try but still count as guessed for the achievement
+- Shows each tower's tries before the ~30-second lockout (3 wrong codes) and a countdown while it is locked
 - Tries codes with no repeated digits first, then the rest. Each list is shuffled in a random order unique to the group, shared by everyone viewing it, and reshuffled on Start fresh attempt.
 - Shows attempts made, combinations left, and a shared attempt log
-- Has **Undo last** for misclicks and **Start fresh attempt** for whenever the game picks a new code (after anyone enters the correct code, even mid-match, or when a new match starts)
+- Has **Undo last** for misclicks and **Start fresh attempt** for whenever the game picks a new code (after anyone calls in any drill, tower code or FOB drill rig, even mid-match, or when a new match starts)
 - Saves every code marked correct (no names) and shows pattern analysis at `/stats`, with a CSV download
 - No dependencies: Node 18+ only
 

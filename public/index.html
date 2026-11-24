@@ -63,7 +63,7 @@
 
       <details class="about" open>
         <summary class="about-title">About the Code Breaker achievement</summary>
-        <p><em>“Guess at least 3 numbers correctly on the Drill Tower.”</em> At least 3 digits must be guessed, not revealed by capturing towers, when the correct code goes in. Enter the code at a tower your faction holds. A wrong-code lockout applies to everyone at that tower, so spread your squad across different towers to guess in parallel. Some players have reported entering a correct guess without the achievement unlocking; the developers are investigating.</p>
+        <p><em>“Guess at least 3 numbers correctly on the Drill Tower.”</em> At least 3 digits must be guessed, not revealed by capturing towers, when the correct code goes in. Enter the code at a tower your faction holds. <strong>Any drill call by anyone</strong> (a tower code or a FOB drill rig) changes the code, so if you see the Hot Zone pulled, click Start fresh attempt. A wrong-code lockout applies to everyone at that tower, so spread your squad across different towers to guess in parallel. Some players have reported entering a correct guess without the achievement unlocking; the developers are investigating.</p>
       </details>
 
       <div class="card">
@@ -85,15 +85,15 @@
           <option>Sabatulo</option>
           <option>Other</option>
         </select>
-        <label class="lbl">Known digits <span class="muted">(captured from towers; leave unknown positions blank)</span></label>
+        <label class="lbl">Known digits <span class="muted">(leave unknown positions blank; tap Tower/Told under a digit to say where it came from)</span></label>
         <div class="slots" id="slots"></div>
         <button class="btn" id="saveSetup" type="button">Save setup</button>
       </div>
 
       <div class="warn" id="warn" hidden>
         <strong>The achievement can't be earned with this setup.</strong>
-        Code Breaker needs at least 3 unknown digits, and this setup has <span id="warnCount"></span>.
-        Clear known digits until at least 3 positions are blank.
+        Code Breaker needs at least 3 digits your faction didn't capture itself (unknown, or told by another team), and this setup has <span id="warnCount"></span>.
+        Clear captured digits until at least 3 positions are blank or marked Told.
       </div>
 
       <div class="card main-card">
@@ -102,7 +102,7 @@
           <div class="seg" id="towerSeg">
             <button type="button" data-t="1">1</button><button type="button" data-t="2">2</button><button type="button" data-t="3">3</button><button type="button" data-t="4">4</button><button type="button" data-t="5">5</button><button type="button" data-t="6">6</button><button type="button" data-t="7">7</button>
           </div>
-          <p class="tip"><strong>Spread out to guess faster.</strong> A keypad lockout hits everyone at that tower, but other towers keep working. Send people to different towers your faction holds and pick your tower here. Each tower gets its own code, and no code is handed out twice.</p>
+          <p class="tip"><strong>Spread out to guess faster.</strong> A keypad lockout hits everyone at that tower, but other towers keep working. Send people to different towers your faction holds and pick your tower here. Each tower gets its own code, and no code is handed out twice. If anyone calls in a drill (tower code or FOB drill rig), the code changes: use Start fresh attempt.</p>
         </div>
         <div class="lbl" id="phaseLabel"></div>
         <div class="code-display mono" id="codeDisplay" aria-live="polite"></div>
@@ -111,6 +111,7 @@
           <button class="btn danger big" id="wrongBtn" type="button">Code wrong</button>
           <button class="btn success big" id="correctBtn" type="button">Code correct</button>
         </div>
+        <p class="lock" id="lockStatus" hidden></p>
         <div class="confirm-correct" id="confirmCorrect" hidden>
           <p><strong>Did the game accept <span class="mono" id="confirmCode"></span>?</strong></p>
           <p class="muted small">Only confirm if the Hot Zone magnet actually activated. This code goes into the shared stats everyone uses to study the patterns.</p>
@@ -119,6 +120,20 @@
             <button class="btn success big" id="confirmYes" type="button">Yes, it was correct</button>
           </div>
         </div>
+        <details class="manual" id="manualBox">
+          <summary>Typed a different code by mistake?</summary>
+          <p class="muted small">Enter the code that was actually typed into the keypad. It's logged as tried so the app never hands it out again.</p>
+          <input id="manualCode" class="text mono" inputmode="numeric" autocomplete="off" placeholder="Code that was typed">
+          <div class="actions" id="manualActions">
+            <button class="btn danger" id="manualWrong" type="button">It was wrong</button>
+            <button class="btn success" id="manualCorrect" type="button">It was correct</button>
+          </div>
+          <div class="confirm" id="manualConfirm" hidden>
+            <span>Did the game accept <strong class="mono" id="manualConfirmCode"></strong>?</span>
+            <button class="btn success" id="manualYes" type="button">Yes, record it</button>
+            <button class="btn ghost" id="manualNo" type="button">Cancel</button>
+          </div>
+        </details>
         <div class="others-wrap" id="otherTowersWrap" hidden>
           <div class="lbl">Other towers working now</div>
           <ul class="others" id="otherTowers"></ul>
@@ -147,7 +162,7 @@
       <div class="card reset-card">
         <div>
           <h2>Start fresh attempt</h2>
-          <p class="muted small">Use whenever the game picks a new code: after <strong>anyone</strong> in the match enters the correct code (the match keeps going with a different code), or when a new match starts. Clears every attempt and known digit for the whole group.</p>
+          <p class="muted small">Use whenever the game picks a new code: after <strong>anyone</strong> in the match calls in <strong>any drill</strong> (a correct tower code or a FOB drill rig, from any faction; the match keeps going with a different code), or when a new match starts. Clears every attempt and known digit for the whole group.</p>
         </div>
         <div>
           <button class="btn danger-outline" id="resetBtn" type="button">Start fresh attempt</button>

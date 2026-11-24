@@ -134,3 +134,14 @@ details.about summary { cursor: pointer; }
 .others li { display: grid; grid-template-columns: 80px 80px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
 .others .mono { letter-spacing: 0.1em; font-weight: 700; }
 @media (max-width: 420px) { .tower-pick .seg button { width: 36px; } }
+
+.slot-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.src { font: inherit; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--known); background: transparent; color: var(--known); cursor: pointer; }
+.src.told { border-color: var(--accent); color: var(--accent); }
+.lock { font-size: 0.88rem; color: var(--muted); margin: 10px 0 0; }
+.lock.locked { color: var(--accent); font-weight: 600; }
+.manual { margin-top: 14px; text-align: left; border-top: 1px solid var(--line); padding-top: 10px; }
+.manual summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+.manual .text { margin: 8px 0 10px; max-width: 220px; display: block; }
+.manual .actions .btn { flex: 1; }
+.manual .confirm { margin-top: 6px; }
