@@ -66,11 +66,13 @@
         <p><em>“Guess at least 3 numbers correctly on the Drill Tower.”</em> At least 3 digits must be guessed, not revealed by capturing towers, when the correct code goes in. Enter the code at a tower your faction holds. <strong>Any drill call by anyone</strong> (a tower code or a FOB drill rig) changes the code, so if you see the Hot Zone pulled, click Start fresh attempt. A wrong-code lockout applies to everyone at that tower, so spread your squad across different towers to guess in parallel. Some players have reported entering a correct guess without the achievement unlocking; the developers are investigating.</p>
       </details>
 
-      <div class="card">
-        <div class="row-between">
-          <h2>Setup</h2>
-          <span class="muted small" id="dirtyNote" hidden>Unsaved changes</span>
-        </div>
+      <div class="card setup-card" id="setupCard">
+        <button class="setup-toggle" id="setupToggle" type="button" aria-expanded="true" aria-controls="setupBody">
+          <span class="setup-head"><span class="setup-title">Setup</span><span class="muted small" id="dirtyNote" hidden>Unsaved changes</span></span>
+          <span class="setup-summary" id="setupSummary"></span>
+          <span class="chev" aria-hidden="true"></span>
+        </button>
+        <div id="setupBody">
         <label class="lbl">Code length</label>
         <div class="seg" id="lenSeg">
           <button type="button" data-len="3">3</button>
@@ -88,6 +90,7 @@
         <label class="lbl">Known digits <span class="muted">(leave unknown positions blank; tap Tower/Told under a digit to say where it came from)</span></label>
         <div class="slots" id="slots"></div>
         <button class="btn" id="saveSetup" type="button">Save setup</button>
+        </div>
       </div>
 
       <div class="warn" id="warn" hidden>
