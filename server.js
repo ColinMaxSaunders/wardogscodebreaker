@@ -48,7 +48,7 @@ let totalStreams = 0;
 function load() {
   try {
     const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    for (const g of raw) groups.set(g.id, g);
+    for (const g of raw) { if (!g.seed) g.seed = newSeed(); groups.set(g.id, g); }
     console.log(`Loaded ${groups.size} group(s)`);
   } catch (e) {
     if (e.code !== 'ENOENT') console.error('Could not read data file:', e.message);
@@ -70,11 +70,13 @@ function scheduleSave() {
 
 function blankPattern(len) { return Array(len).fill(null); }
 
+function newSeed() { return crypto.randomBytes(16).toString('hex'); }
+
 function getSequence(g) {
-  const key = JSON.stringify(g.known);
+  const key = g.seed + JSON.stringify(g.known);
   const hit = seqCache.get(g.id);
   if (hit && hit.key === key) return hit.seq;
-  const seq = buildSequence(g.known);
+  const seq = buildSequence(g.known, g.seed);
   seqCache.set(g.id, { key, seq });
   return seq;
 }
@@ -211,7 +213,7 @@ async function handleApi(req, res, parts, ip) {
     const body = await readJson(req);
     const len = validLength(body.length) ? body.length : 4;
     let id; do { id = newInviteCode(); } while (groups.has(id));
-    const g = { id, round: 1, known: blankPattern(len), attempts: [], solved: null, createdAt: Date.now(), updatedAt: Date.now() };
+    const g = { id, round: 1, seed: newSeed(), known: blankPattern(len), attempts: [], solved: null, createdAt: Date.now(), updatedAt: Date.now() };
     groups.set(id, g); scheduleSave();
     return send(res, 201, view(g));
   }
@@ -270,7 +272,7 @@ async function handleApi(req, res, parts, ip) {
       touch(g); return send(res, 200, view(g));
     }
     case 'reset': {
-      g.round += 1; g.attempts = []; g.solved = null; g.known = blankPattern(g.known.length);
+      g.round += 1; g.seed = newSeed(); g.attempts = []; g.solved = null; g.known = blankPattern(g.known.length);
       touch(g); return send(res, 200, view(g));
     }
     default: return send(res, 404, { error: 'Unknown action' });

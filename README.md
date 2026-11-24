@@ -7,7 +7,7 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 - Group invite codes are 8 random characters, for example `GMSK-B4KD`
 - Code length is 3–5 digits. Known digits can be entered in their positions.
 - Warns when fewer than 3 digits are unknown, because Code Breaker needs at least 3 guessed digits
-- Tries codes with no repeated digits first, then the rest
+- Tries codes with no repeated digits first, then the rest. Each list is shuffled in a random order unique to the group, shared by everyone viewing it, and reshuffled on Start fresh attempt.
 - Shows attempts made, combinations left, and a shared attempt log
 - Has **Undo last** for misclicks and **Start fresh attempt** for a new match
 - No dependencies: Node 18+ only
