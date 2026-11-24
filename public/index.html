@@ -10,7 +10,7 @@
 <body>
   <header class="topbar">
     <div class="brand">CODE BREAKER <span>coordinator</span></div>
-    <div class="conn" id="conn" hidden></div>
+    <nav class="nav"><a href="/stats">Code stats</a><div class="conn" id="conn" hidden></div></nav>
   </header>
 
   <main>
@@ -77,6 +77,14 @@
           <button type="button" data-len="4">4</button>
           <button type="button" data-len="5">5</button>
         </div>
+        <label class="lbl" for="mapSel">Map <span class="muted">(optional, helps the code stats)</span></label>
+        <select id="mapSel" class="text select">
+          <option value="">Not set</option>
+          <option>Bakurani</option>
+          <option>Ozeti</option>
+          <option>Sabatulo</option>
+          <option>Other</option>
+        </select>
         <label class="lbl">Known digits <span class="muted">(captured from towers; leave unknown positions blank)</span></label>
         <div class="slots" id="slots"></div>
         <button class="btn" id="saveSetup" type="button">Save setup</button>
@@ -92,13 +100,22 @@
         <div class="lbl" id="phaseLabel"></div>
         <div class="code-display mono" id="codeDisplay" aria-live="polite"></div>
         <div class="win-msg" id="winMsg" hidden></div>
-        <div class="actions">
+        <div class="actions" id="guessActions">
           <button class="btn danger big" id="wrongBtn" type="button">Code wrong</button>
           <button class="btn success big" id="correctBtn" type="button">Code correct</button>
+        </div>
+        <div class="confirm-correct" id="confirmCorrect" hidden>
+          <p><strong>Did the game accept <span class="mono" id="confirmCode"></span>?</strong></p>
+          <p class="muted small">Only confirm if the Hot Zone magnet actually activated. This code goes into the shared stats everyone uses to study the patterns.</p>
+          <div class="actions">
+            <button class="btn ghost big" id="confirmNo" type="button">No, go back</button>
+            <button class="btn success big" id="confirmYes" type="button">Yes, it was correct</button>
+          </div>
         </div>
         <div class="sub-actions">
           <button class="btn ghost" id="undoBtn" type="button">Undo last</button>
         </div>
+        <p class="muted small record-note">Every code marked correct is saved anonymously (code, map and digit count, no names) so everyone can study the patterns on the <a href="/stats">Code stats</a> page. Undo removes it.</p>
         <div class="toast" id="toast" hidden></div>
       </div>
 
@@ -119,7 +136,7 @@
       <div class="card reset-card">
         <div>
           <h2>Start fresh attempt</h2>
-          <p class="muted small">Use when a new match starts. Clears every attempt and known digit for the whole group.</p>
+          <p class="muted small">Use whenever the game picks a new code: after <strong>anyone</strong> in the match enters the correct code (the match keeps going with a different code), or when a new match starts. Clears every attempt and known digit for the whole group.</p>
         </div>
         <div>
           <button class="btn danger-outline" id="resetBtn" type="button">Start fresh attempt</button>

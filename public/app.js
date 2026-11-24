@@ -12,8 +12,9 @@
   let groupId = null;
   let es = null;
   let busy = false;
+  let pendingCorrect = null; // code awaiting "are you sure?"
   let setupDirty = false;
-  let draft = { length: 4, known: [null, null, null, null] };
+  let draft = { length: 4, known: [null, null, null, null], map: '' };
 
   // ---------- routing ----------
   const m = location.pathname.match(/^\/g\/([A-Za-z0-9-]+)$/);
@@ -97,13 +98,21 @@
       const len = Number(b.dataset.len);
       const k = draft.known.slice(0, len);
       while (k.length < len) k.push(null);
-      draft = { length: len, known: k };
+      draft = { length: len, known: k, map: draft.map };
       markDirty(); renderSetup();
     });
     $('saveSetup').addEventListener('click', saveSetup);
+    $('mapSel').addEventListener('change', () => { draft.map = $('mapSel').value; markDirty(); });
 
     $('wrongBtn').addEventListener('click', () => mark('wrong'));
-    $('correctBtn').addEventListener('click', () => mark('correct'));
+    $('correctBtn').addEventListener('click', askCorrect);
+    $('confirmNo').addEventListener('click', closeConfirm);
+    $('confirmYes').addEventListener('click', async () => {
+      const code = pendingCorrect;
+      closeConfirm();
+      if (code && state && state.current === code && !state.solved) await act('correct', { guess: code, by: $('myName').value });
+      else flash('The code changed before you confirmed. Nothing was recorded.');
+    });
     $('undoBtn').addEventListener('click', () => act('undo', {}));
 
     $('resetBtn').addEventListener('click', () => { $('resetBtn').hidden = true; $('resetConfirm').hidden = false; });
@@ -118,8 +127,22 @@
   function markDirty() { setupDirty = true; $('dirtyNote').hidden = false; }
 
   async function saveSetup() {
-    const r = await act('config', { length: draft.length, known: draft.known });
+    const r = await act('config', { length: draft.length, known: draft.known, map: draft.map });
     if (r && r.ok) { setupDirty = false; $('dirtyNote').hidden = true; flash('Setup saved for everyone.'); }
+  }
+
+  function askCorrect() {
+    if (!state || !state.current || state.solved || busy) return;
+    pendingCorrect = state.current;
+    $('confirmCode').textContent = pendingCorrect;
+    $('guessActions').hidden = true;
+    $('confirmCorrect').hidden = false;
+    $('confirmNo').focus();
+  }
+  function closeConfirm() {
+    pendingCorrect = null;
+    $('confirmCorrect').hidden = true;
+    $('guessActions').hidden = false;
   }
 
   async function mark(result) {
@@ -150,7 +173,8 @@
   function apply(s) {
     if (!s || s.id !== groupId) return;
     state = s;
-    if (!setupDirty) { draft = { length: s.length, known: s.known.slice() }; $('dirtyNote').hidden = true; }
+    if (pendingCorrect && (s.current !== pendingCorrect || s.solved)) { closeConfirm(); flash('Someone else moved on, so that confirmation was cancelled.'); }
+    if (!setupDirty) { draft = { length: s.length, known: s.known.slice(), map: s.map || '' }; $('dirtyNote').hidden = true; }
     render();
   }
 
@@ -166,6 +190,7 @@
       'no-repeat': 'Next code to try · non-repeating digits first',
       'repeat': 'Next code to try · now including repeated digits',
       'exhausted': 'Every combination for this setup has been tried',
+      'too-many': 'Capture more towers before guessing',
       'solved': 'Code cracked'
     }[s.phase];
     $('phaseLabel').textContent = phase;
@@ -178,13 +203,19 @@
         d.textContent = s.current[i];
         disp.appendChild(d);
       }
+    } else if (s.phase === 'too-many') {
+      const need = s.unknownCount - s.maxUnknownToGuess;
+      const p = document.createElement('div'); p.className = 'msg block';
+      p.textContent = s.unknownCount + ' digits are unknown, which means ' + fmt(s.totalCombos) + ' possible codes. That is too many to brute-force before the code changes. '
+        + 'Capture ' + need + ' more tower' + (need === 1 ? '' : 's') + ' and enter ' + (need === 1 ? 'its digit' : 'their digits') + ' in Setup, so exactly 3 digits are left to guess (at most 1,000 codes).';
+      disp.appendChild(p);
     } else {
       const p = document.createElement('div'); p.className = 'msg';
       p.textContent = 'No codes left. Check the known digits and code length, then use Undo or Start fresh attempt.';
       disp.appendChild(p);
     }
     $('winMsg').hidden = !s.solved;
-    if (s.solved) $('winMsg').textContent = 'Solved by ' + s.solved.by + '. Check whether the achievement unlocked.';
+    if (s.solved) $('winMsg').textContent = 'Solved by ' + s.solved.by + '. Check whether the achievement unlocked. The game has now picked a new code, so click Start fresh attempt to go after the next one.';
 
     $('statAttempts').textContent = fmt(s.attemptsMade);
     $('statRemaining').textContent = fmt(s.remainingTotal);
@@ -209,6 +240,7 @@
 
   function renderSetup() {
     for (const b of $('lenSeg').children) b.classList.toggle('on', Number(b.dataset.len) === draft.length);
+    if ($('mapSel').value !== draft.map) $('mapSel').value = draft.map;
     const wrap = $('slots');
     const focusedIdx = [...wrap.children].indexOf(document.activeElement);
     if (wrap.children.length !== draft.length) {

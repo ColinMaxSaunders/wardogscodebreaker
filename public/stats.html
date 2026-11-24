@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Code stats · Code Breaker Coordinator</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">CODE BREAKER <span>coordinator</span></a>
+    <nav class="nav"><a href="/">Back to app</a></nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <h1>Correct-code stats</h1>
+      <p class="muted">Every code a group marks <strong>Code correct</strong> is saved here, with no names attached. The tests below compare those codes against the simplest way a game could pick them: each digit chosen independently from 0–9. Anything that consistently strays from that points to how the developers actually built it.</p>
+      <div class="filters">
+        <label class="lbl" for="source">Codes to include</label>
+        <select id="source" class="text select">
+          <option value="all">All correct codes</option>
+          <option value="revealed">Fully revealed by towers only</option>
+          <option value="guessed">Found by guessing only</option>
+        </select>
+        <a class="btn" href="/api/stats/solves.csv" download>Download CSV</a>
+      </div>
+      <p class="muted small" id="counts"></p>
+      <p class="muted small"><strong>Which codes to trust:</strong> codes found by guessing are slightly skewed, because the app tries non-repeating codes first and groups that give up never record a code. Codes your team fully revealed by capturing every tower have no such skew. To log one, enter every digit as known, then click Code correct.</p>
+    </div>
+
+    <div class="card">
+      <h2>Repeated digits</h2>
+      <p class="muted small">Do codes like 664 or 3133 ever happen? If digits never repeat, the game is probably drawing digits without replacement, and the app's non-repeating-first order is the best possible strategy.</p>
+      <table class="stat-table">
+        <thead><tr><th>Length</th><th>Codes</th><th>With a repeat</th><th>Observed</th><th>Expected if random</th></tr></thead>
+        <tbody id="repeatRows"></tbody>
+      </table>
+      <div id="repeatVerdicts"></div>
+    </div>
+
+    <div class="card">
+      <h2>How often each digit appears</h2>
+      <p class="muted small">If digits are fair, each of 0–9 shows up about 10% of the time. A missing 0, or a digit that shows up far too often, means the generator isn't fair.</p>
+      <div class="bars" id="bars"></div>
+      <div class="bar-labels" id="barLabels"></div>
+      <div id="digitVerdicts"></div>
+    </div>
+
+    <div class="card">
+      <h2>Digits by position</h2>
+      <p class="muted small">Counts of each digit in each position. Look for a position that never gets a certain digit, such as a code that never starts with 0.</p>
+      <div id="positions"></div>
+    </div>
+
+    <div class="card">
+      <h2>By map</h2>
+      <table class="stat-table"><thead><tr><th>Map</th><th>Codes</th></tr></thead><tbody id="mapRows"></tbody></table>
+    </div>
+
+    <p class="muted small center">Results are flagged when they would happen less than 5% of the time with fully random digits. With only a few codes, any pattern can be luck, so wait for at least 20–30 codes of a given length before drawing conclusions.</p>
+  </main>
+  <script src="/stats.js"></script>
+</body>
+</html>

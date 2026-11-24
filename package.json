@@ -8,6 +8,7 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "start": "node server.js",
-    "test": "node test/sequence.test.js"
+    "test": "node test/sequence.test.js && node test/stats.test.js",
+    "test:store": "node test/store.integration.js"
   }
 }
