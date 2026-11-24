@@ -9,7 +9,8 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 - Warns when fewer than 3 digits are unknown, because Code Breaker needs at least 3 guessed digits
 - Tries codes with no repeated digits first, then the rest. Each list is shuffled in a random order unique to the group, shared by everyone viewing it, and reshuffled on Start fresh attempt.
 - Shows attempts made, combinations left, and a shared attempt log
-- Has **Undo last** for misclicks and **Start fresh attempt** for a new match
+- Has **Undo last** for misclicks and **Start fresh attempt** for whenever the game picks a new code (after anyone enters the correct code, even mid-match, or when a new match starts)
+- Saves every code marked correct (no names) and shows pattern analysis at `/stats`, with a CSV download
 - No dependencies: Node 18+ only
 
 ## Run locally

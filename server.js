@@ -9,12 +9,16 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { buildSequence, matchesPattern } = require('./lib/sequence');
+const { computeStats, toCsv } = require('./lib/stats');
 
 // ---------- configuration (environment variables) ----------
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'groups.json');
+const SOLVES_FILE = path.join(DATA_DIR, 'solves.json');   // permanent log of correct codes
+const MAX_SOLVES = 200000;
+const MAPS = ['', 'Bakurani', 'Ozeti', 'Sabatulo', 'Other'];
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';        // set to 1 behind Render/Fly/nginx
 const GROUP_TTL_HOURS = parseFloat(process.env.GROUP_TTL_HOURS || '48');
 const MAX_GROUPS = parseInt(process.env.MAX_GROUPS || '5000', 10);
@@ -44,8 +48,15 @@ const groups = new Map();      // inviteCode -> group
 const streams = new Map();     // inviteCode -> Set<res>
 const seqCache = new Map();    // inviteCode -> { key, seq }
 let totalStreams = 0;
+let solves = [];               // correct codes, kept after groups expire
 
 function load() {
+  try {
+    solves = JSON.parse(fs.readFileSync(SOLVES_FILE, 'utf8'));
+    console.log(`Loaded ${solves.length} recorded correct code(s)`);
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.error('Could not read solves file:', e.message);
+  }
   try {
     const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     for (const g of raw) { if (!g.seed) g.seed = newSeed(); groups.set(g.id, g); }
@@ -61,11 +72,16 @@ function scheduleSave() {
     saveTimer = null;
     try {
       fs.mkdirSync(DATA_DIR, { recursive: true });
-      const tmp = DATA_FILE + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify([...groups.values()]));
-      fs.renameSync(tmp, DATA_FILE); // atomic replace
+      writeAtomic(DATA_FILE, JSON.stringify([...groups.values()]));
+      writeAtomic(SOLVES_FILE, JSON.stringify(solves));
     } catch (e) { console.error('Save failed:', e.message); }
   }, 1000);
+}
+
+function writeAtomic(file, text) {
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, text);
+  fs.renameSync(tmp, file); // atomic replace
 }
 
 function blankPattern(len) { return Array(len).fill(null); }
@@ -97,6 +113,7 @@ function view(g) {
     round: g.round,
     length: g.known.length,
     known: g.known,
+    map: g.map || '',
     unknownCount: seq.unknownCount,
     eligible: seq.unknownCount >= 3,
     current,
@@ -191,7 +208,9 @@ const PUBLIC = path.join(__dirname, 'public');
 const STATIC = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
-  '/styles.css': ['styles.css', 'text/css; charset=utf-8']
+  '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
+  '/stats': ['stats.html', 'text/html; charset=utf-8'],
+  '/stats.js': ['stats.js', 'text/javascript; charset=utf-8']
 };
 function serveStatic(req, res, pathname) {
   const entry = STATIC[pathname] || (pathname.startsWith('/g/') ? STATIC['/'] : null);
@@ -249,7 +268,10 @@ async function handleApi(req, res, parts, ip) {
     case 'config': {
       if (!validLength(body.length) || !validKnown(body.known, body.length))
         return send(res, 400, { error: 'Code length must be 3-5 and each known digit 0-9 or blank.' });
+      if (body.map !== undefined && !MAPS.includes(body.map))
+        return send(res, 400, { error: 'Unknown map.' });
       g.known = body.known.slice();
+      if (body.map !== undefined) g.map = body.map;
       touch(g); return send(res, 200, view(g));
     }
     case 'wrong':
@@ -261,14 +283,32 @@ async function handleApi(req, res, parts, ip) {
       if (!v.current || body.guess !== v.current)
         return send(res, 409, { error: 'Someone already moved on. Showing the latest code.', state: v });
       const entry = { guess: v.current, by: cleanName(body.by), at: Date.now(), result: action };
+      if (action === 'correct') {
+        // Record for pattern analysis. No names, and the group is stored only
+        // as a one-way hash so the public data never exposes invite codes.
+        entry.solveId = crypto.randomBytes(6).toString('hex');
+        solves.push({
+          id: entry.solveId,
+          code: v.current,
+          map: g.map || '',
+          unknownCount: v.unknownCount,
+          revealed: g.known.map(d => d === null ? 'x' : String(d)).join(''),
+          wrongBefore: v.attemptsMatchingSetup,
+          group: crypto.createHash('sha256').update('cb:' + g.id).digest('hex').slice(0, 10),
+          round: g.round,
+          at: entry.at
+        });
+        if (solves.length > MAX_SOLVES) solves.splice(0, solves.length - MAX_SOLVES);
+        g.solved = entry;
+      }
       g.attempts.push(entry);
-      if (action === 'correct') g.solved = entry;
       touch(g); return send(res, 200, view(g));
     }
     case 'undo': {
       if (!g.attempts.length) return send(res, 409, { error: 'Nothing to undo.', state: view(g) });
       const last = g.attempts.pop();
       if (g.solved && g.solved.at === last.at) g.solved = null;
+      if (last.solveId) solves = solves.filter(s => s.id !== last.solveId); // misclicked "correct" leaves no bad data
       touch(g); return send(res, 200, view(g));
     }
     case 'reset': {
@@ -287,6 +327,14 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/favicon.ico') { res.writeHead(204, SECURITY_HEADERS); return res.end(); }
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts[0] === 'api' && parts[1] === 'groups') return await handleApi(req, res, parts, ip);
+    if (req.method === 'GET' && url.pathname === '/api/stats') {
+      const source = ['all', 'revealed', 'guessed'].includes(url.searchParams.get('source')) ? url.searchParams.get('source') : 'all';
+      return send(res, 200, computeStats(solves, source));
+    }
+    if (req.method === 'GET' && url.pathname === '/api/stats/solves.csv') {
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="codebreaker-correct-codes.csv"', 'Cache-Control': 'no-store', ...SECURITY_HEADERS });
+      return res.end(toCsv(solves));
+    }
     if (req.method === 'GET' && serveStatic(req, res, url.pathname)) return;
     send(res, 404, { error: 'Not found' });
   } catch (e) {
@@ -307,6 +355,6 @@ setInterval(() => {
 load();
 server.listen(PORT, HOST, () => console.log(`Code Breaker coordinator on http://${HOST}:${PORT}`));
 
-function shutdown() { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(DATA_FILE, JSON.stringify([...groups.values()])); } catch {} process.exit(0); }
+function shutdown() { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } try { fs.mkdirSync(DATA_DIR, { recursive: true }); writeAtomic(DATA_FILE, JSON.stringify([...groups.values()])); writeAtomic(SOLVES_FILE, JSON.stringify(solves)); } catch {} process.exit(0); }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
