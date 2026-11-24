@@ -16,7 +16,8 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 - Shows each tower's tries before the ~30-second lockout (3 wrong codes) and a countdown while it is locked
 - Tries codes with no repeated digits first, then the rest. Each list is shuffled in a random order unique to the group, shared by everyone viewing it, and reshuffled on Start fresh attempt.
 - Shows attempts made, combinations left, and a shared attempt log
-- Has **Undo last** for misclicks and **Start fresh attempt** for whenever the game picks a new code (after anyone calls in any drill, tower code or FOB drill rig, even mid-match, or when a new match starts)
+- Has **Undo last** for misclicks. **Start fresh attempt** has two choices for whenever the game picks a new code (after anyone calls in any drill, tower code or FOB drill rig, even mid-match, or on a new match): **New code, same map** keeps the code length and map, and **New map** clears the map too. Both reopen Setup for everyone.
+- **Leave group** returns to the start page, which offers a link back to your last group
 - Saves every code marked correct (no names) and shows pattern analysis at `/stats`, with a CSV download
 - No dependencies: Node 18+ only
 
