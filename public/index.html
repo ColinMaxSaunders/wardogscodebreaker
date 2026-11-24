@@ -63,7 +63,7 @@
 
       <details class="about" open>
         <summary class="about-title">About the Code Breaker achievement</summary>
-        <p><em>“Guess at least 3 numbers correctly on the Drill Tower.”</em> At least 3 digits must be guessed, not revealed by capturing towers, when the correct code goes in. Enter the code at a tower your faction holds. Some players have reported entering a correct guess without the achievement unlocking; the developers are investigating.</p>
+        <p><em>“Guess at least 3 numbers correctly on the Drill Tower.”</em> At least 3 digits must be guessed, not revealed by capturing towers, when the correct code goes in. Enter the code at a tower your faction holds. A wrong-code lockout applies to everyone at that tower, so spread your squad across different towers to guess in parallel. Some players have reported entering a correct guess without the achievement unlocking; the developers are investigating.</p>
       </details>
 
       <div class="card">
@@ -97,6 +97,13 @@
       </div>
 
       <div class="card main-card">
+        <div class="tower-pick">
+          <div class="lbl">Tower you're at</div>
+          <div class="seg" id="towerSeg">
+            <button type="button" data-t="1">1</button><button type="button" data-t="2">2</button><button type="button" data-t="3">3</button><button type="button" data-t="4">4</button><button type="button" data-t="5">5</button><button type="button" data-t="6">6</button><button type="button" data-t="7">7</button>
+          </div>
+          <p class="tip"><strong>Spread out to guess faster.</strong> A keypad lockout hits everyone at that tower, but other towers keep working. Send people to different towers your faction holds and pick your tower here. Each tower gets its own code, and no code is handed out twice.</p>
+        </div>
         <div class="lbl" id="phaseLabel"></div>
         <div class="code-display mono" id="codeDisplay" aria-live="polite"></div>
         <div class="win-msg" id="winMsg" hidden></div>
@@ -111,6 +118,10 @@
             <button class="btn ghost big" id="confirmNo" type="button">No, go back</button>
             <button class="btn success big" id="confirmYes" type="button">Yes, it was correct</button>
           </div>
+        </div>
+        <div class="others-wrap" id="otherTowersWrap" hidden>
+          <div class="lbl">Other towers working now</div>
+          <ul class="others" id="otherTowers"></ul>
         </div>
         <div class="sub-actions">
           <button class="btn ghost" id="undoBtn" type="button">Undo last</button>

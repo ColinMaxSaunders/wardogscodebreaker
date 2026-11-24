@@ -31,6 +31,10 @@ const MIN_LEN = 3, MAX_LEN = 5;
 // combinations, 5 = 100,000, far beyond what a group can try before the
 // code changes. Capturing towers until exactly 3 are unknown is the plan.
 const MAX_UNKNOWN_TO_GUESS = 3;
+// Keypad lockouts are per tower and hit everyone at that tower, so each tower
+// gets its own code and a squad spread across towers guesses in parallel.
+const TOWERS = ['1', '2', '3', '4', '5', '6', '7'];
+const LANE_STALE_MS = 15 * 60_000;   // an idle tower's code is freed after this
 
 // ---------- invite codes ----------
 // 31 unambiguous characters (no 0/O, 1/I/L) x 8 = ~39.6 bits of entropy.
@@ -79,6 +83,44 @@ function getSequence(g) {
   return seq;
 }
 
+function laneOf(body) { return TOWERS.includes(String(body.lane)) ? String(body.lane) : '1'; }
+
+function triedSet(g) { return new Set(g.attempts.filter(a => a.result === 'wrong').map(a => a.guess)); }
+
+function guessingBlocked(g) {
+  return !!g.solved || getSequence(g).unknownCount > MAX_UNKNOWN_TO_GUESS;
+}
+
+// A tower's code is valid while it is recent, untried and fits the setup.
+function laneValid(g, lane, tried) {
+  const a = g.lanes && g.lanes[lane];
+  return !!a && Date.now() - a.at < LANE_STALE_MS && !tried.has(a.code) && matchesPattern(a.code, g.known);
+}
+
+// Next code for a tower: first in the shuffled order that nobody has tried
+// and no other active tower is holding.
+function nextCodeFor(g, lane, tried = triedSet(g)) {
+  const held = new Set();
+  for (const t of Object.keys(g.lanes || {})) if (t !== lane && laneValid(g, t, tried)) held.add(g.lanes[t].code);
+  const seq = getSequence(g);
+  for (const c of seq.noRepeat) if (!tried.has(c) && !held.has(c)) return c;
+  for (const c of seq.withRepeat) if (!tried.has(c) && !held.has(c)) return c;
+  return null;
+}
+
+function assignLane(g, lane, by) {
+  if (!g.lanes) g.lanes = {};
+  const code = guessingBlocked(g) ? null : nextCodeFor(g, lane);
+  if (code) g.lanes[lane] = { code, at: Date.now(), by };
+  else delete g.lanes[lane];
+}
+
+// The code a tower should be entering right now.
+function expectedCode(g, lane) {
+  const tried = triedSet(g);
+  return laneValid(g, lane, tried) ? g.lanes[lane].code : nextCodeFor(g, lane, tried);
+}
+
 function view(g) {
   const seq = getSequence(g);
   const tried = new Set(g.attempts.filter(a => a.result === 'wrong').map(a => a.guess));
@@ -88,6 +130,12 @@ function view(g) {
   for (const c of seq.withRepeat) if (!tried.has(c)) { remRepeat++; if (!current) { current = c; phase = 'repeat'; } }
   if (g.solved) { phase = 'solved'; current = g.solved.guess; }
   else if (seq.unknownCount > MAX_UNKNOWN_TO_GUESS) { phase = 'too-many'; current = null; }
+
+  if (phase === 'no-repeat' || phase === 'repeat') current = nextCodeFor(g, null, tried) || current;
+  const lanes = {};
+  if (phase === 'no-repeat' || phase === 'repeat') {
+    for (const t of Object.keys(g.lanes || {})) if (laneValid(g, t, tried)) lanes[t] = g.lanes[t];
+  }
 
   const wrongCount = g.attempts.filter(a => a.result === 'wrong').length;
   const relevantWrong = g.attempts.filter(a => a.result === 'wrong' && matchesPattern(a.guess, g.known)).length;
@@ -102,6 +150,7 @@ function view(g) {
     maxUnknownToGuess: MAX_UNKNOWN_TO_GUESS,
     current,
     phase,
+    lanes,
     totalCombos: seq.noRepeat.length + seq.withRepeat.length,
     remainingNoRepeat: remNoRepeat,
     remainingRepeat: remRepeat,
@@ -256,6 +305,7 @@ async function handleApi(req, res, parts, ip) {
         return send(res, 400, { error: 'Unknown map.' });
       g.known = body.known.slice();
       if (body.map !== undefined) g.map = body.map;
+      g.lanes = {}; // every tower re-claims a code that fits the new setup
       touch(g); return send(res, 200, view(g));
     }
     case 'wrong':
@@ -266,16 +316,18 @@ async function handleApi(req, res, parts, ip) {
       // the click only counts if it refers to the code currently on screen.
       if (v.phase === 'too-many')
         return send(res, 409, { error: `Too many unknown digits to guess. Capture ${v.unknownCount - MAX_UNKNOWN_TO_GUESS} more tower(s) first.`, state: v });
-      if (!v.current || body.guess !== v.current)
-        return send(res, 409, { error: 'Someone already moved on. Showing the latest code.', state: v });
-      const entry = { guess: v.current, by: cleanName(body.by), at: Date.now(), result: action };
+      const lane = laneOf(body);
+      const expected = expectedCode(g, lane);
+      if (!expected || body.guess !== expected)
+        return send(res, 409, { error: 'Someone at your tower already moved on. Showing the latest code.', state: v });
+      const entry = { guess: expected, by: cleanName(body.by), at: Date.now(), result: action, tower: lane };
       if (action === 'correct') {
         // Record for pattern analysis. No names, and the group is stored only
         // as a one-way hash so the public data never exposes invite codes.
         entry.solveId = crypto.randomBytes(6).toString('hex');
         const solve = {
           id: entry.solveId,
-          code: v.current,
+          code: expected,
           map: g.map || '',
           unknownCount: v.unknownCount,
           revealed: g.known.map(d => d === null ? 'x' : String(d)).join(''),
@@ -290,12 +342,28 @@ async function handleApi(req, res, parts, ip) {
         g.solved = entry;
       }
       g.attempts.push(entry);
+      if (action === 'wrong') assignLane(g, lane, entry.by); // this tower's next code, straight away
+      else g.lanes = {};
+      touch(g); return send(res, 200, view(g));
+    }
+    case 'claim': {
+      // A viewer at a tower asks for (or keeps alive) that tower's code.
+      const lane = laneOf(body);
+      if (!guessingBlocked(g)) {
+        if (laneValid(g, lane, triedSet(g))) g.lanes[lane].at = Date.now();
+        else assignLane(g, lane, cleanName(body.by));
+      }
       touch(g); return send(res, 200, view(g));
     }
     case 'undo': {
       if (!g.attempts.length) return send(res, 409, { error: 'Nothing to undo.', state: view(g) });
       const last = g.attempts.pop();
       if (g.solved && g.solved.at === last.at) g.solved = null;
+      // a misclicked "wrong" goes straight back to the tower that clicked it
+      if (last.result === 'wrong' && last.tower && !guessingBlocked(g)) {
+        if (!g.lanes) g.lanes = {};
+        g.lanes[last.tower] = { code: last.guess, at: Date.now(), by: last.by };
+      }
       if (last.solveId) { // misclicked "correct" leaves no bad data
         solves = solves.filter(s => s.id !== last.solveId);
         store.removeSolve(last.solveId);
@@ -303,7 +371,7 @@ async function handleApi(req, res, parts, ip) {
       touch(g); return send(res, 200, view(g));
     }
     case 'reset': {
-      g.round += 1; g.seed = newSeed(); g.attempts = []; g.solved = null; g.known = blankPattern(g.known.length);
+      g.round += 1; g.seed = newSeed(); g.attempts = []; g.solved = null; g.lanes = {}; g.known = blankPattern(g.known.length);
       touch(g); return send(res, 200, view(g));
     }
     default: return send(res, 404, { error: 'Unknown action' });

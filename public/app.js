@@ -13,8 +13,30 @@
   let es = null;
   let busy = false;
   let pendingCorrect = null; // code awaiting "are you sure?"
+  let myTower = '1';         // keypad lockouts are per tower, so each tower gets its own code
+  let claiming = false;
   let setupDirty = false;
   let draft = { length: 4, known: [null, null, null, null], map: '' };
+
+  // The code this viewer's tower should enter now (null if none).
+  function myCode(s) {
+    if (!s) return null;
+    if (s.solved) return s.solved.guess;
+    if (s.phase !== 'no-repeat' && s.phase !== 'repeat') return null;
+    return (s.lanes && s.lanes[myTower] && s.lanes[myTower].code) || null;
+  }
+
+  // Ask the server for this tower's code if it doesn't have one yet.
+  async function ensureClaim() {
+    const s = state;
+    if (!s || claiming || s.solved || (s.phase !== 'no-repeat' && s.phase !== 'repeat')) return;
+    if (s.lanes && s.lanes[myTower]) return;
+    claiming = true;
+    try {
+      const r = await api('/' + groupId + '/claim', { lane: myTower, by: $('myName').value });
+      if (r.ok) apply(r.data); else if (r.data.state) apply(r.data.state);
+    } finally { claiming = false; }
+  }
 
   // ---------- routing ----------
   const m = location.pathname.match(/^\/g\/([A-Za-z0-9-]+)$/);
@@ -84,6 +106,19 @@
 
   function wireGroup() {
     $('inviteCode').textContent = pretty(groupId);
+    myTower = store.get('cb_tower_' + groupId) || '1';
+    $('towerSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-t]'); if (!b) return;
+      if (pendingCorrect) closeConfirm();
+      myTower = b.dataset.t;
+      store.set('cb_tower_' + groupId, myTower);
+      render();
+    });
+    // keep this tower's code reserved while the page is open
+    setInterval(() => {
+      if (document.visibilityState === 'visible' && state && state.lanes && state.lanes[myTower])
+        api('/' + groupId + '/claim', { lane: myTower, by: $('myName').value });
+    }, 5 * 60_000);
     $('myName').value = store.get('cb_name') || '';
     $('myName').addEventListener('input', () => store.set('cb_name', $('myName').value));
 
@@ -110,7 +145,7 @@
     $('confirmYes').addEventListener('click', async () => {
       const code = pendingCorrect;
       closeConfirm();
-      if (code && state && state.current === code && !state.solved) await act('correct', { guess: code, by: $('myName').value });
+      if (code && myCode(state) === code && !state.solved) await act('correct', { guess: code, lane: myTower, by: $('myName').value });
       else flash('The code changed before you confirmed. Nothing was recorded.');
     });
     $('undoBtn').addEventListener('click', () => act('undo', {}));
@@ -132,8 +167,8 @@
   }
 
   function askCorrect() {
-    if (!state || !state.current || state.solved || busy) return;
-    pendingCorrect = state.current;
+    if (!myCode(state) || state.solved || busy) return;
+    pendingCorrect = myCode(state);
     $('confirmCode').textContent = pendingCorrect;
     $('guessActions').hidden = true;
     $('confirmCorrect').hidden = false;
@@ -146,8 +181,8 @@
   }
 
   async function mark(result) {
-    if (!state || !state.current || state.solved || busy) return;
-    await act(result, { guess: state.current, by: $('myName').value });
+    if (!myCode(state) || state.solved || busy) return;
+    await act(result, { guess: myCode(state), lane: myTower, by: $('myName').value });
   }
 
   async function act(action, body) {
@@ -173,7 +208,7 @@
   function apply(s) {
     if (!s || s.id !== groupId) return;
     state = s;
-    if (pendingCorrect && (s.current !== pendingCorrect || s.solved)) { closeConfirm(); flash('Someone else moved on, so that confirmation was cancelled.'); }
+    if (pendingCorrect && (myCode(s) !== pendingCorrect || s.solved)) { closeConfirm(); flash('Someone else moved on, so that confirmation was cancelled.'); }
     if (!setupDirty) { draft = { length: s.length, known: s.known.slice(), map: s.map || '' }; $('dirtyNote').hidden = true; }
     render();
   }
@@ -186,9 +221,13 @@
     $('warn').hidden = s.eligible;
     $('warnCount').textContent = s.unknownCount === 1 ? '1 unknown digit' : s.unknownCount + ' unknown digits';
 
+    for (const b of $('towerSeg').children) b.classList.toggle('on', b.dataset.t === myTower);
+    const code = myCode(s);
+    const guessing = s.phase === 'no-repeat' || s.phase === 'repeat';
+    const hasRepeat = code && new Set(code).size < code.length;
     const phase = {
-      'no-repeat': 'Next code to try · non-repeating digits first',
-      'repeat': 'Next code to try · now including repeated digits',
+      'no-repeat': 'Tower ' + myTower + ' · next code' + (hasRepeat ? ' · now including repeated digits' : ' · non-repeating digits first'),
+      'repeat': 'Tower ' + myTower + ' · next code' + (hasRepeat ? ' · now including repeated digits' : ' · non-repeating digits first'),
       'exhausted': 'Every combination for this setup has been tried',
       'too-many': 'Capture more towers before guessing',
       'solved': 'Code cracked'
@@ -196,13 +235,17 @@
     $('phaseLabel').textContent = phase;
 
     const disp = $('codeDisplay'); disp.replaceChildren();
-    if (s.current) {
-      for (let i = 0; i < s.current.length; i++) {
+    if (code) {
+      for (let i = 0; i < code.length; i++) {
         const d = document.createElement('div');
         d.className = 'digit' + (s.solved ? ' solved' : s.known[i] !== null ? ' known' : '');
-        d.textContent = s.current[i];
+        d.textContent = code[i];
         disp.appendChild(d);
       }
+    } else if (guessing) {
+      const p = document.createElement('div'); p.className = 'msg';
+      p.textContent = 'Getting a code for Tower ' + myTower + '…';
+      disp.appendChild(p);
     } else if (s.phase === 'too-many') {
       const need = s.unknownCount - s.maxUnknownToGuess;
       const p = document.createElement('div'); p.className = 'msg block';
@@ -214,6 +257,18 @@
       p.textContent = 'No codes left. Check the known digits and code length, then use Undo or Start fresh attempt.';
       disp.appendChild(p);
     }
+    // codes other towers are working on
+    const others = $('otherTowers'); others.replaceChildren();
+    const busyTowers = Object.keys(s.lanes || {}).filter(t => t !== myTower).sort();
+    $('otherTowersWrap').hidden = !busyTowers.length;
+    for (const t of busyTowers) {
+      const li = document.createElement('li');
+      const a = document.createElement('span'); a.textContent = 'Tower ' + t;
+      const c = document.createElement('span'); c.className = 'mono'; c.textContent = s.lanes[t].code;
+      const w = document.createElement('span'); w.className = 'muted'; w.textContent = s.lanes[t].by || '';
+      li.append(a, c, w); others.appendChild(li);
+    }
+
     $('winMsg').hidden = !s.solved;
     if (s.solved) $('winMsg').textContent = 'Solved by ' + s.solved.by + '. Check whether the achievement unlocked. The game has now picked a new code, so click Start fresh attempt to go after the next one.';
 
@@ -230,12 +285,13 @@
       const li = document.createElement('li');
       li.className = a.result + (a.stale ? ' stale' : '');
       const g = document.createElement('span'); g.className = 'g'; g.textContent = a.guess;
-      const who = document.createElement('span'); who.textContent = (a.result === 'correct' ? 'Correct · ' : 'Wrong · ') + a.by;
+      const who = document.createElement('span'); who.textContent = (a.result === 'correct' ? 'Correct · ' : 'Wrong · ') + a.by + (a.tower ? ' · Tower ' + a.tower : '');
       const t = document.createElement('span'); t.className = 't'; t.textContent = new Date(a.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       li.append(g, who, t); log.appendChild(li);
     }
     $('logEmpty').hidden = s.attempts.length > 0;
     updateButtons();
+    if (guessing && !code) ensureClaim();
   }
 
   function renderSetup() {
@@ -269,7 +325,7 @@
 
   function updateButtons() {
     const s = state; if (!s) return;
-    const canGuess = !!s.current && !s.solved && !busy;
+    const canGuess = !!myCode(s) && !s.solved && !busy;
     $('wrongBtn').disabled = !canGuess;
     $('correctBtn').disabled = !canGuess;
     $('undoBtn').disabled = busy || s.attempts.length === 0;

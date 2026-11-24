@@ -123,3 +123,14 @@ details.about summary { cursor: pointer; }
 /* keep the header on one line on phones */
 .nav a, .conn { white-space: nowrap; }
 @media (max-width: 480px) { .brand span { display: none; } .topbar { padding: 12px 14px; } }
+
+.tower-pick { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.tower-pick .lbl { margin-top: 0; }
+.tower-pick .seg button { width: 42px; }
+.tip { font-size: 0.85rem; color: var(--muted); margin: 10px auto 0; max-width: 560px; }
+.tip strong { color: var(--accent); }
+.others-wrap { margin-top: 14px; text-align: left; }
+.others { list-style: none; margin: 0; padding: 0; }
+.others li { display: grid; grid-template-columns: 80px 80px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+.others .mono { letter-spacing: 0.1em; font-weight: 700; }
+@media (max-width: 420px) { .tower-pick .seg button { width: 36px; } }

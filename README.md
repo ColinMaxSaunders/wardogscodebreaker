@@ -9,6 +9,7 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 - Warns when fewer than 3 digits are unknown, because Code Breaker needs at least 3 guessed digits
 - Blocks guessing when 4 or 5 digits are unknown (10,000 or 100,000 codes) and tells the group how many more towers to capture
 - Asks "Did the game accept this code?" before recording a correct code
+- Gives each tower its own code. A keypad lockout hits everyone at that tower, so a squad spread across towers guesses in parallel, and no code is handed out twice. People at the same tower share one code.
 - Tries codes with no repeated digits first, then the rest. Each list is shuffled in a random order unique to the group, shared by everyone viewing it, and reshuffled on Start fresh attempt.
 - Shows attempts made, combinations left, and a shared attempt log
 - Has **Undo last** for misclicks and **Start fresh attempt** for whenever the game picks a new code (after anyone enters the correct code, even mid-match, or when a new match starts)
