@@ -40,6 +40,7 @@
           <label class="lbl" for="joinCode">Invite code</label>
           <input id="joinCode" class="text mono" placeholder="ABCD-EFGH" maxlength="9" autocomplete="off" spellcheck="false">
           <button class="btn wide" id="joinBtn" type="button">Join</button>
+          <p class="muted small rejoin" id="rejoinWrap" hidden>Or go back to your last group: <a id="rejoinLink" href="/"></a></p>
         </div>
       </div>
     </section>
@@ -53,6 +54,7 @@
         </div>
         <div class="invite-actions">
           <button class="btn" id="copyLink" type="button">Copy invite link</button>
+          <button class="btn ghost small-btn" id="leaveBtn" type="button">Leave group</button>
           <span class="muted small" id="viewers"></span>
         </div>
         <div class="name-row">
@@ -165,15 +167,16 @@
       <div class="card reset-card">
         <div>
           <h2>Start fresh attempt</h2>
-          <p class="muted small">Use whenever the game picks a new code: after <strong>anyone</strong> in the match calls in <strong>any drill</strong> (a correct tower code or a FOB drill rig, from any faction; the match keeps going with a different code), or when a new match starts. Clears every attempt and known digit for the whole group.</p>
+          <p class="muted small">Use whenever the game picks a new code: after <strong>anyone</strong> in the match calls in <strong>any drill</strong> (a correct tower code or a FOB drill rig, from any faction; the match keeps going with a different code), or when a new match starts. Clears every attempt, known digit and tower code for the whole group, then opens Setup.</p>
         </div>
-        <div>
-          <button class="btn danger-outline" id="resetBtn" type="button">Start fresh attempt</button>
-          <div class="confirm" id="resetConfirm" hidden>
-            <span>Clear everything for all viewers?</span>
-            <button class="btn danger" id="resetYes" type="button">Yes, start fresh</button>
-            <button class="btn ghost" id="resetNo" type="button">Cancel</button>
-          </div>
+        <div class="reset-actions" id="resetActions">
+          <button class="btn danger-outline" id="resetCodeBtn" type="button">New code, same map</button>
+          <button class="btn danger-outline" id="resetMapBtn" type="button">New map</button>
+        </div>
+        <div class="confirm" id="resetConfirm" hidden>
+          <span id="resetQuestion"></span>
+          <button class="btn danger" id="resetYes" type="button">Yes, start fresh</button>
+          <button class="btn ghost" id="resetNo" type="button">Cancel</button>
         </div>
       </div>
     </section>

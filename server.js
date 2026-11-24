@@ -427,6 +427,9 @@ async function handleApi(req, res, parts, ip) {
       touch(g); return send(res, 200, view(g));
     }
     case 'reset': {
+      // scope 'code': new code on the same map (keeps length and map).
+      // scope 'map': new map, so the map choice is cleared too.
+      if (body.scope === 'map') g.map = '';
       g.round += 1; g.seed = newSeed(); g.attempts = []; g.solved = null; g.lanes = {}; g.known = blankPattern(g.known.length); g.sources = blankPattern(g.known.length);
       touch(g); return send(res, 200, view(g));
     }

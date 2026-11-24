@@ -16,7 +16,8 @@
   let myTower = '1';         // keypad lockouts are per tower, so each tower gets its own code
   let claiming = false;
   let clockOffset = 0;
-  let setupOpen = null;      // null until the first state arrives, then true/false       // server time minus this device's time
+  let setupOpen = null;      // null until the first state arrives, then true/false
+  let lastRound = null;      // a new round means someone started fresh       // server time minus this device's time
   let setupDirty = false;
   let draft = { length: 4, known: [null, null, null, null], sources: [null, null, null, null], map: '' };
 
@@ -59,6 +60,12 @@
   // ---------- landing ----------
   function showLanding() {
     show('landing');
+    const last = store.get('cb_last_group');
+    if (last && /^[A-Z0-9]{8}$/.test(last)) {
+      $('rejoinLink').textContent = pretty(last);
+      $('rejoinLink').href = '/g/' + last;
+      $('rejoinWrap').hidden = false;
+    }
     let len = 4;
     $('createLen').addEventListener('click', (e) => {
       const b = e.target.closest('button[data-len]'); if (!b) return;
@@ -92,6 +99,7 @@
       return;
     }
     show('group');
+    store.set('cb_last_group', id);
     wireGroup();
     apply(r.data);
     connect();
@@ -141,7 +149,7 @@
       markDirty(); renderSetup();
     });
     $('saveSetup').addEventListener('click', saveSetup);
-    $('setupToggle').addEventListener('click', () => setSetupOpen(!setupOpen));
+    $('setupToggle').addEventListener('click', () => { setSetupOpen(!setupOpen); if (state) render(); });
     $('mapSel').addEventListener('change', () => { draft.map = $('mapSel').value; markDirty(); });
 
     $('wrongBtn').addEventListener('click', () => mark('wrong'));
@@ -179,13 +187,40 @@
     });
     $('undoBtn').addEventListener('click', () => act('undo', {}));
 
-    $('resetBtn').addEventListener('click', () => { $('resetBtn').hidden = true; $('resetConfirm').hidden = false; });
-    $('resetNo').addEventListener('click', () => { $('resetBtn').hidden = false; $('resetConfirm').hidden = true; });
+    // Start fresh: same map (keeps code length and map) or a new map (asks for everything).
+    let resetScope = 'code';
+    const askReset = (scope) => {
+      resetScope = scope;
+      $('resetQuestion').textContent = scope === 'map'
+        ? 'Clear everything, including the map, for all viewers?'
+        : 'Clear all attempts and known digits for all viewers? Code length and map stay.';
+      $('resetActions').hidden = true; $('resetConfirm').hidden = false;
+    };
+    const closeReset = () => { $('resetActions').hidden = false; $('resetConfirm').hidden = true; };
+    $('resetCodeBtn').addEventListener('click', () => askReset('code'));
+    $('resetMapBtn').addEventListener('click', () => askReset('map'));
+    $('resetNo').addEventListener('click', closeReset);
     $('resetYes').addEventListener('click', async () => {
-      $('resetBtn').hidden = false; $('resetConfirm').hidden = true;
+      closeReset();
       setupDirty = false;
-      await act('reset', {});
+      const r = await act('reset', { scope: resetScope });
+      if (r && r.ok) openSetupFor(resetScope);
     });
+
+    // Leave: stop live updates and go back to the start page.
+    $('leaveBtn').addEventListener('click', () => {
+      if (es) es.close();
+      location.href = '/';
+    });
+  }
+
+  // Open Setup and put the cursor where the next input is needed.
+  function openSetupFor(scope) {
+    setSetupOpen(true);
+    if (state) render();
+    $('setupCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const target = scope === 'map' ? $('lenSeg').querySelector('button.on') || $('mapSel') : $('slots').querySelector('.slot');
+    if (target) setTimeout(() => target.focus({ preventScroll: true }), 300);
   }
 
   function markDirty() { setupDirty = true; $('dirtyNote').hidden = false; }
@@ -249,7 +284,13 @@
     if (setupOpen === null) {
       const inUse = s.attempts.length > 0 || s.known.some(d => d !== null) || !!s.map;
       setSetupOpen(!inUse);
+    } else if (lastRound !== null && s.round !== lastRound) {
+      // someone started fresh: digits were cleared, so show where to enter new ones
+      setupDirty = false;
+      draft = { length: s.length, known: s.known.slice(), sources: (s.sources || s.known.map(() => null)).slice(), map: s.map || '' };
+      setSetupOpen(true);
     }
+    lastRound = s.round;
     renderSetup();
     renderSetupSummary();
 
@@ -288,6 +329,12 @@
       p.textContent = s.unknownCount + ' digits are unknown, which means ' + fmt(s.totalCombos) + ' possible codes. That is too many to brute-force before the code changes. '
         + 'Capture ' + need + ' more tower' + (need === 1 ? '' : 's') + ' and enter ' + (need === 1 ? 'its digit' : 'their digits') + ' in Setup, so exactly 3 digits are left to guess (at most 1,000 codes).';
       disp.appendChild(p);
+      if (!setupOpen) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Setup';
+        b.addEventListener('click', () => openSetupFor('code'));
+        disp.appendChild(b);
+      }
     } else {
       const p = document.createElement('div'); p.className = 'msg';
       p.textContent = 'No codes left. Check the known digits and code length, then use Undo or Start fresh attempt.';
