@@ -75,6 +75,7 @@ details.about summary { cursor: pointer; }
 .digit { width: 72px; height: 92px; display: flex; align-items: center; justify-content: center; font-size: 3.2rem; font-weight: 800; border-radius: 10px; background: var(--bg); border: 2px solid var(--accent); color: var(--text); }
 .digit.known { border-color: var(--known); color: var(--known); }
 .digit.solved { border-color: var(--green); color: var(--green); }
+.code-display .msg.block { color: var(--accent); font-size: 1rem; line-height: 1.5; padding: 14px 4px; max-width: 520px; }
 .code-display .msg { font-size: 1.3rem; padding: 26px 0; color: var(--muted); }
 .win-msg { color: var(--green); font-weight: 700; margin: -8px 0 16px; }
 @media (max-width: 420px) { .digit { width: 54px; height: 72px; font-size: 2.4rem; } }
@@ -114,3 +115,11 @@ details.about summary { cursor: pointer; }
 .bar-labels { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; text-align: center; font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
 .heat td { text-align: center !important; }
 .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.confirm-correct { border: 1px solid var(--green); border-radius: var(--radius); padding: 14px; background: rgba(63, 174, 106, 0.08); }
+.confirm-correct p { margin: 0 0 10px; }
+.confirm-correct .mono { color: var(--green); letter-spacing: 0.1em; }
+
+/* keep the header on one line on phones */
+.nav a, .conn { white-space: nowrap; }
+@media (max-width: 480px) { .brand span { display: none; } .topbar { padding: 12px 14px; } }

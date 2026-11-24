@@ -7,6 +7,8 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 - Group invite codes are 8 random characters, for example `GMSK-B4KD`
 - Code length is 3–5 digits. Known digits can be entered in their positions.
 - Warns when fewer than 3 digits are unknown, because Code Breaker needs at least 3 guessed digits
+- Blocks guessing when 4 or 5 digits are unknown (10,000 or 100,000 codes) and tells the group how many more towers to capture
+- Asks "Did the game accept this code?" before recording a correct code
 - Tries codes with no repeated digits first, then the rest. Each list is shuffled in a random order unique to the group, shared by everyone viewing it, and reshuffled on Start fresh attempt.
 - Shows attempts made, combinations left, and a shared attempt log
 - Has **Undo last** for misclicks and **Start fresh attempt** for whenever the game picks a new code (after anyone enters the correct code, even mid-match, or when a new match starts)
@@ -19,6 +21,23 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 2. Open a terminal in this folder and run `npm start`.
 3. Open http://localhost:3000.
 
+## Storage
+
+The app keeps all live state in memory and saves it to one of two places:
+
+- **Supabase** (recommended for any hosted deploy), used when `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are both set. Groups and every recorded correct code survive restarts, redeploys and Render's free-tier sleep. Writes are queued and retried (1s, 2s, 4s, up to 30s), so a short Supabase outage loses nothing. If saved data can't be loaded at startup, the app refuses to start rather than run without it.
+- **Local JSON files** in `DATA_DIR`, used when neither variable is set. Fine for running on your own PC. On Render's free tier these files are wiped on every restart.
+
+### Supabase setup (one time)
+
+1. Create a Supabase project just for this app. Don't reuse another app's project, because the secret key has full access to everything in its project.
+2. In the project, open **SQL Editor → New query**, paste the contents of `supabase/schema.sql`, and click **Run**. It creates two tables and locks both so the public key can't read or write them.
+3. Go to **Project Settings → API Keys**, then **Secret keys**. Create a key named `render-codebreaker` and copy it (it starts with `sb_secret_`).
+4. In Render, open the service and go to **Environment**. Add `SUPABASE_URL` (`https://<project-ref>.supabase.co`) and `SUPABASE_SECRET_KEY` (the key you just copied), then save. Render redeploys automatically.
+5. Check the Render log for `Storage: supabase. Loaded …`.
+
+**Never put the secret key in front-end code, a commit, or a chat.** If it leaks, delete it in Supabase and create a new one. The app reads it only from the environment.
+
 ## Deploy (Render, free tier)
 
 1. Push this folder to a GitHub repository.
@@ -27,7 +46,7 @@ A small web app that lets a group brute-force a WARDOGS Drill Tower code togethe
 4. Add environment variable `TRUST_PROXY=1`. This makes rate limiting see real visitor IPs behind Render's proxy.
 5. Deploy, then share `https://<your-app>.onrender.com`.
 
-Free Render instances sleep when idle, and their disk is wiped on redeploy. Groups survive a restart only if you attach a persistent disk mounted at `/app/data`. Without one, a sleep or redeploy deletes active groups.
+Free Render instances sleep when idle, and their disk is wiped on restart. Set up Supabase (above) so groups and recorded codes are kept.
 
 Any host that runs Docker or Node and allows long-lived HTTP connections will work, such as Fly.io, Railway, or a VPS behind nginx/Caddy. Always serve it over HTTPS.
 
@@ -36,7 +55,9 @@ Any host that runs Docker or Node and allows long-lived HTTP connections will wo
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | 3000 | Port to listen on |
-| `DATA_DIR` | `./data` | Where `groups.json` is saved |
+| `SUPABASE_URL` | none | Supabase project URL. Set it together with `SUPABASE_SECRET_KEY` |
+| `SUPABASE_SECRET_KEY` | none | Supabase secret key (`sb_secret_…`), server only |
+| `DATA_DIR` | `./data` | Where the JSON files are saved when Supabase isn't configured |
 | `TRUST_PROXY` | off | Set to `1` behind a reverse proxy |
 | `GROUP_TTL_HOURS` | 48 | Idle groups are deleted after this long |
 | `MAX_GROUPS` | 5000 | Cap on groups held at once |
@@ -54,4 +75,4 @@ State lives in memory and is pushed live to browsers from that one process. If y
 
 ## Test
 
-`npm test` checks the combination engine.
+`npm test` checks the combination engine and the stats math. `npm run test:store` checks Supabase persistence (writes, undo, retries during an outage, reload after restart, paging, shutdown flush) against a local mock of Supabase's REST API. It takes about a minute.

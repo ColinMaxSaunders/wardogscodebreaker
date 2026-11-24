@@ -100,9 +100,17 @@
         <div class="lbl" id="phaseLabel"></div>
         <div class="code-display mono" id="codeDisplay" aria-live="polite"></div>
         <div class="win-msg" id="winMsg" hidden></div>
-        <div class="actions">
+        <div class="actions" id="guessActions">
           <button class="btn danger big" id="wrongBtn" type="button">Code wrong</button>
           <button class="btn success big" id="correctBtn" type="button">Code correct</button>
+        </div>
+        <div class="confirm-correct" id="confirmCorrect" hidden>
+          <p><strong>Did the game accept <span class="mono" id="confirmCode"></span>?</strong></p>
+          <p class="muted small">Only confirm if the Hot Zone magnet actually activated. This code goes into the shared stats everyone uses to study the patterns.</p>
+          <div class="actions">
+            <button class="btn ghost big" id="confirmNo" type="button">No, go back</button>
+            <button class="btn success big" id="confirmYes" type="button">Yes, it was correct</button>
+          </div>
         </div>
         <div class="sub-actions">
           <button class="btn ghost" id="undoBtn" type="button">Undo last</button>
