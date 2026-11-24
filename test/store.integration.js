@@ -31,6 +31,8 @@ async function api(p, body) {
   const r = await fetch(APP + p, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return r.json();
 }
+// the code Tower 1 should enter (falls back to the next free code before Tower 1 has one)
+const t1 = (s) => (s.lanes && s.lanes['1'] && s.lanes['1'].code) || s.current;
 const stop = (app) => new Promise(r => { app.child.on('exit', r); app.child.kill('SIGTERM'); });
 
 let current = null;
@@ -52,13 +54,13 @@ process.on('exit', () => { if (current) try { current.child.kill('SIGKILL'); } c
 
   const g = await api('/api/groups', { length: 3 });
   let s = await api(`/api/groups/${g.id}/config`, { length: 3, known: [null, null, null], map: 'Ozeti' });
-  s = await api(`/api/groups/${g.id}/wrong`, { guess: s.current, by: 'C' });
+  s = await api(`/api/groups/${g.id}/wrong`, { guess: t1(s), lane: '1', by: 'C' });
   await sleep(1200);
   assert.ok(mock.tables.groups.has(g.id), 'group saved');
   assert.strictEqual(mock.tables.groups.get(g.id).data.attempts.length, 1);
 
   // correct -> solve row; undo -> row removed
-  s = await api(`/api/groups/${g.id}/correct`, { guess: s.current, by: 'C' });
+  s = await api(`/api/groups/${g.id}/correct`, { guess: t1(s), lane: '1', by: 'C' });
   await sleep(1200);
   const mine = () => [...mock.tables.solves.values()].filter(r => !r.id.startsWith('seed'));
   assert.strictEqual(mine().length, 1, 'solve inserted');
@@ -71,8 +73,8 @@ process.on('exit', () => { if (current) try { current.child.kill('SIGKILL'); } c
   // Supabase outage: next 4 requests fail; writes must retry and land in order
   mock.fail(4);
   s = await api(`/api/groups/${g.id}`);
-  s = await api(`/api/groups/${g.id}/correct`, { guess: s.current, by: 'C' });
-  const solvedCode = s.current;
+  s = await api(`/api/groups/${g.id}/correct`, { guess: t1(s), lane: '1', by: 'C' });
+  const solvedCode = t1(s);
   await sleep(1000);
   assert.strictEqual(mine().length, 0, 'not written during outage');
   await sleep(16000); // retries after 1s, 2s, 4s, 8s
@@ -83,14 +85,14 @@ process.on('exit', () => { if (current) try { current.child.kill('SIGKILL'); } c
   await stop(app);
   app = current = startApp(); await waitUp();
   s = await api(`/api/groups/${g.id}`);
-  assert.strictEqual(s.current, solvedCode, 'group restored after restart');
+  assert.strictEqual(s.solved.guess, solvedCode, 'group restored after restart');
   assert.strictEqual(s.map, 'Ozeti');
   stats = await api('/api/stats');
   assert.strictEqual(stats.countAll, 2501, 'solves restored after restart');
 
   // shutdown flushes queued writes
   s = await api(`/api/groups/${g.id}/reset`, {});
-  s = await api(`/api/groups/${g.id}/wrong`, { guess: s.current, by: 'C' });
+  s = await api(`/api/groups/${g.id}/wrong`, { guess: t1(s), lane: '1', by: 'C' });
   await stop(app);
   assert.strictEqual(mock.tables.groups.get(g.id).data.attempts.length, 1, 'flushed on SIGTERM');
 
